@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Plus, Search, Key, Eye, EyeOff, Copy, Trash2 } from "lucide-react";
+import { Shield, Plus, Search, Key, Eye, EyeOff, Copy, Trash2, Settings as SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import PasswordGenerator from "@/components/PasswordGenerator";
 import AddPasswordDialog from "@/components/AddPasswordDialog";
 import DeletePasswordDialog from "@/components/DeletePasswordDialog";
+import Settings from "@/components/Settings";
 import { analyzePasswordSecurity } from "@/utils/securityAnalysis";
 
 interface PasswordEntry {
@@ -28,11 +29,18 @@ const Index = () => {
   const [passwords, setPasswords] = useState<PasswordEntry[]>([]);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; passwordId: string; websiteName: string }>({
     open: false,
     passwordId: "",
     websiteName: ""
   });
+
+  // PIN authentication state
+  const [hasPin, setHasPin] = useState(false);
+  const [storedPin, setStoredPin] = useState("");
+  const [pinInput, setPinInput] = useState("");
+  const [loginMethod, setLoginMethod] = useState<"master" | "pin">("master");
 
   const handleSetupPassword = () => {
     if (masterPassword.length < 8) {
@@ -54,13 +62,37 @@ const Index = () => {
   };
 
   const handleUnlock = () => {
-    if (masterPassword === storedMasterPassword) {
-      setIsUnlocked(true);
-      toast.success("🔓 Vault unlocked successfully");
-      setMasterPassword("");
+    if (loginMethod === "master") {
+      if (masterPassword === storedMasterPassword) {
+        setIsUnlocked(true);
+        toast.success("🔓 Vault unlocked successfully");
+        setMasterPassword("");
+      } else {
+        toast.error("❌ Invalid master password");
+      }
     } else {
-      toast.error("❌ Invalid master password");
+      if (pinInput === storedPin) {
+        setIsUnlocked(true);
+        toast.success("🔓 Vault unlocked with PIN");
+        setPinInput("");
+      } else {
+        toast.error("❌ Invalid PIN");
+      }
     }
+  };
+
+  const handlePinSetup = (pin: string) => {
+    setStoredPin(pin);
+    setHasPin(true);
+  };
+
+  const handlePinChange = (newPin: string) => {
+    setStoredPin(newPin);
+  };
+
+  const handlePinRemove = () => {
+    setStoredPin("");
+    setHasPin(false);
   };
 
   const togglePasswordVisibility = (id: string) => {
@@ -111,6 +143,7 @@ const Index = () => {
     setIsUnlocked(false);
     setVisiblePasswords(new Set());
     setMasterPassword("");
+    setPinInput("");
   };
 
   const securityAnalysis = analyzePasswordSecurity(passwords);
@@ -174,19 +207,57 @@ const Index = () => {
               <Shield className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-hero mb-2">SecureVault</h1>
-            <p className="text-muted-foreground">Enter your master password to unlock your vault</p>
+            <p className="text-muted-foreground">
+              {hasPin ? "Enter your PIN or master password" : "Enter your master password to unlock your vault"}
+            </p>
           </div>
           
           <div className="space-y-4">
-            <Input
-              type="password"
-              placeholder="Master Password"
-              value={masterPassword}
-              onChange={(e) => setMasterPassword(e.target.value)}
-              className="input-secure"
-              onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-            />
-            <Button onClick={handleUnlock} className="btn-hero w-full" disabled={!masterPassword}>
+            {hasPin && (
+              <div className="flex justify-center gap-2 mb-4">
+                <Button
+                  variant={loginMethod === "pin" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setLoginMethod("pin")}
+                >
+                  PIN
+                </Button>
+                <Button
+                  variant={loginMethod === "master" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setLoginMethod("master")}
+                >
+                  Master Password
+                </Button>
+              </div>
+            )}
+
+            {loginMethod === "pin" ? (
+              <Input
+                type="password"
+                placeholder="Enter 4-digit PIN"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="input-secure text-center text-2xl tracking-widest"
+                maxLength={4}
+                onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+              />
+            ) : (
+              <Input
+                type="password"
+                placeholder="Master Password"
+                value={masterPassword}
+                onChange={(e) => setMasterPassword(e.target.value)}
+                className="input-secure"
+                onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+              />
+            )}
+
+            <Button 
+              onClick={handleUnlock} 
+              className="btn-hero w-full" 
+              disabled={loginMethod === "pin" ? !pinInput : !masterPassword}
+            >
               <Shield className="w-4 h-4 mr-2" />
               Unlock Vault
             </Button>
@@ -212,9 +283,15 @@ const Index = () => {
               </p>
             </div>
           </div>
-          <Button onClick={handleLockVault} variant="outline">
-            Lock Vault
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setShowSettings(true)} variant="outline">
+              <SettingsIcon className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+            <Button onClick={handleLockVault} variant="outline">
+              Lock Vault
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -365,6 +442,16 @@ const Index = () => {
           onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
           onConfirm={confirmDelete}
           websiteName={deleteDialog.websiteName}
+        />
+
+        <Settings
+          open={showSettings}
+          onOpenChange={setShowSettings}
+          masterPassword={storedMasterPassword}
+          hasPin={hasPin}
+          onPinSetup={handlePinSetup}
+          onPinChange={handlePinChange}
+          onPinRemove={handlePinRemove}
         />
       </div>
     </div>
