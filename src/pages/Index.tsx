@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Shield, Plus, Search, Key, Eye, EyeOff, Copy, Trash2, Settings as SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -106,8 +107,13 @@ const Index = () => {
   };
 
   const copyToClipboard = async (text: string, type: string) => {
-    await navigator.clipboard.writeText(text);
-    toast.success(`✅ ${type} copied to clipboard`);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`✅ ${type} copied to clipboard`);
+    } catch (error) {
+      console.error("Failed to copy to clipboard:", error);
+      toast.error("❌ Failed to copy to clipboard");
+    }
   };
 
   const handleDeleteClick = (id: string, websiteName: string) => {
@@ -156,7 +162,7 @@ const Index = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary to-primary-muted rounded-full mb-4 animate-pulse-glow">
               <Shield className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-hero mb-2">Welcome to SecureVault</h1>
+            <h1 className="text-hero mb-2">Welcome to FGuard</h1>
             <p className="text-muted-foreground">Set up your master password to secure your vault</p>
           </div>
           
@@ -206,7 +212,7 @@ const Index = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary to-primary-muted rounded-full mb-4 animate-pulse-glow">
               <Shield className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-hero mb-2">SecureVault</h1>
+            <h1 className="text-hero mb-2">FGuard</h1>
             <p className="text-muted-foreground">
               {hasPin ? "Enter your PIN or master password" : "Enter your master password to unlock your vault"}
             </p>
@@ -277,7 +283,7 @@ const Index = () => {
               <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">SecureVault</h1>
+              <h1 className="text-2xl font-bold">FGuard</h1>
               <p className="text-sm text-muted-foreground">
                 {passwords.length} passwords • Vault secured
               </p>
