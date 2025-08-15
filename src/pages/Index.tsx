@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Shield, Plus, Search, Key, Eye, EyeOff, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import PasswordGenerator from "@/components/PasswordGenerator";
 import AddPasswordDialog from "@/components/AddPasswordDialog";
+import DeletePasswordDialog from "@/components/DeletePasswordDialog";
+import { analyzePasswordSecurity } from "@/utils/securityAnalysis";
 
 interface PasswordEntry {
   id: string;
@@ -27,6 +28,11 @@ const Index = () => {
   const [passwords, setPasswords] = useState<PasswordEntry[]>([]);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; passwordId: string; websiteName: string }>({
+    open: false,
+    passwordId: "",
+    websiteName: ""
+  });
 
   const handleSetupPassword = () => {
     if (masterPassword.length < 8) {
@@ -72,8 +78,17 @@ const Index = () => {
     toast.success(`✅ ${type} copied to clipboard`);
   };
 
-  const deletePassword = (id: string) => {
-    setPasswords(passwords.filter(p => p.id !== id));
+  const handleDeleteClick = (id: string, websiteName: string) => {
+    setDeleteDialog({
+      open: true,
+      passwordId: id,
+      websiteName
+    });
+  };
+
+  const confirmDelete = () => {
+    setPasswords(passwords.filter(p => p.id !== deleteDialog.passwordId));
+    setDeleteDialog({ open: false, passwordId: "", websiteName: "" });
     toast.success("🗑️ Password deleted");
   };
 
@@ -97,6 +112,8 @@ const Index = () => {
     setVisiblePasswords(new Set());
     setMasterPassword("");
   };
+
+  const securityAnalysis = analyzePasswordSecurity(passwords);
 
   if (!hasSetupPassword) {
     return (
@@ -223,8 +240,18 @@ const Index = () => {
                   <Shield className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-success">Strong</p>
-                  <p className="text-sm text-muted-foreground">Security Score</p>
+                  <p className={`text-2xl font-bold ${
+                    securityAnalysis.level === 'Excellent' || securityAnalysis.level === 'Strong' 
+                      ? 'text-success' 
+                      : securityAnalysis.level === 'Good' 
+                      ? 'text-warning' 
+                      : 'text-destructive'
+                  }`}>
+                    {securityAnalysis.level}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Security Score ({securityAnalysis.score}%)
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -301,7 +328,7 @@ const Index = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => deletePassword(entry.id)}
+                      onClick={() => handleDeleteClick(entry.id, entry.website)}
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -331,6 +358,13 @@ const Index = () => {
           open={showAddDialog}
           onOpenChange={setShowAddDialog}
           onSave={addPassword}
+        />
+
+        <DeletePasswordDialog
+          open={deleteDialog.open}
+          onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+          onConfirm={confirmDelete}
+          websiteName={deleteDialog.websiteName}
         />
       </div>
     </div>
