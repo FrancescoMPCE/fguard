@@ -19,31 +19,39 @@ interface PasswordEntry {
 
 const Index = () => {
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [hasSetupPassword, setHasSetupPassword] = useState(false);
   const [masterPassword, setMasterPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [storedMasterPassword, setStoredMasterPassword] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [passwords, setPasswords] = useState<PasswordEntry[]>([
-    {
-      id: "1",
-      website: "github.com",
-      username: "user@example.com",
-      password: "SecurePass123!",
-      createdAt: new Date()
-    },
-    {
-      id: "2", 
-      website: "google.com",
-      username: "myemail@gmail.com", 
-      password: "MyStr0ngP@ss",
-      createdAt: new Date()
-    }
-  ]);
+  const [passwords, setPasswords] = useState<PasswordEntry[]>([]);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
 
+  const handleSetupPassword = () => {
+    if (masterPassword.length < 8) {
+      toast.error("❌ Master password must be at least 8 characters long");
+      return;
+    }
+    
+    if (masterPassword !== confirmPassword) {
+      toast.error("❌ Passwords do not match");
+      return;
+    }
+
+    setStoredMasterPassword(masterPassword);
+    setHasSetupPassword(true);
+    setIsUnlocked(true);
+    setMasterPassword("");
+    setConfirmPassword("");
+    toast.success("🔐 Master password set successfully! Your vault is now ready.");
+  };
+
   const handleUnlock = () => {
-    if (masterPassword === "demo123") {
+    if (masterPassword === storedMasterPassword) {
       setIsUnlocked(true);
       toast.success("🔓 Vault unlocked successfully");
+      setMasterPassword("");
     } else {
       toast.error("❌ Invalid master password");
     }
@@ -84,6 +92,62 @@ const Index = () => {
     p.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleLockVault = () => {
+    setIsUnlocked(false);
+    setVisiblePasswords(new Set());
+    setMasterPassword("");
+  };
+
+  if (!hasSetupPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="card-vault p-8 w-full max-w-md animate-float">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary to-primary-muted rounded-full mb-4 animate-pulse-glow">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-hero mb-2">Welcome to SecureVault</h1>
+            <p className="text-muted-foreground">Set up your master password to secure your vault</p>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <Input
+                type="password"
+                placeholder="Create Master Password (min 8 characters)"
+                value={masterPassword}
+                onChange={(e) => setMasterPassword(e.target.value)}
+                className="input-secure"
+              />
+            </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="Confirm Master Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="input-secure"
+                onKeyDown={(e) => e.key === "Enter" && handleSetupPassword()}
+              />
+            </div>
+            <Button 
+              onClick={handleSetupPassword} 
+              className="btn-hero w-full"
+              disabled={!masterPassword || !confirmPassword}
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Create Vault
+            </Button>
+            <div className="text-xs text-muted-foreground text-center space-y-1">
+              <p>⚠️ Remember your master password - it cannot be recovered!</p>
+              <p>Use a strong, unique password you'll remember.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isUnlocked) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -105,13 +169,10 @@ const Index = () => {
               className="input-secure"
               onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
             />
-            <Button onClick={handleUnlock} className="btn-hero w-full">
+            <Button onClick={handleUnlock} className="btn-hero w-full" disabled={!masterPassword}>
               <Shield className="w-4 h-4 mr-2" />
               Unlock Vault
             </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              Demo password: <code className="bg-muted px-1 rounded">demo123</code>
-            </p>
           </div>
         </div>
       </div>
@@ -134,7 +195,7 @@ const Index = () => {
               </p>
             </div>
           </div>
-          <Button onClick={() => setIsUnlocked(false)} variant="outline">
+          <Button onClick={handleLockVault} variant="outline">
             Lock Vault
           </Button>
         </div>
